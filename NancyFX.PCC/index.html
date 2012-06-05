@@ -1,0 +1,188 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Places to Go</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <!-- Le styles -->
+    <link href="/Content/less/bootstrap.less" rel="stylesheet/less">
+    <style>
+        body
+        {
+            padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+        }
+    </style>
+    <link href="/Content/less/responsive.less" rel="stylesheet/less">
+    <script type="text/javascript" src="/Scripts/less.min.js"></script>
+    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!-- Le fav and touch icons -->
+    <link rel="shortcut icon" href="/Content/images/favicon.ico">
+    <link rel="apple-touch-icon" href="/Content/images/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/Content/images/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/Content/images/apple-touch-icon-114x114.png">
+</head>
+<body>
+    <div class="navbar navbar-fixed-top">
+        <div class="navbar-inner">
+            <div class="container">
+                <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse"><span
+                    class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span>
+                </a><a class="brand" href="/#">Places to Go</a>
+                <div class="nav-collapse">
+                    <ul class="nav">
+                        <li class="active"><a href="#">Home</a></li>
+                    </ul>
+                </div>
+                <!--/.nav-collapse -->
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <h1>
+            Places to Go <small>A NancyFX project</small></h1>
+        <div class="span6" id="placesList">
+        <a href="#placeModal" class="btn btn-primary pull-right" data-toggle="modal">Add Place</a>
+            <ul class="unstyled" data-bind="foreach: places">
+                <li data-bind="attr:{id: 'place'+ id()}"><a href="#" data-bind="click: $parent.removePlace, attr: { title: 'Remove place: ' + name() }" class="label label-warning"><i class="icon-minus icon-white"></i></a> <a data-bind="text: name, attr:{'data-title': name, 'data-content': tagList}"
+                                                                                                                                                                                            rel="popover"></a></li>
+            </ul>
+        </div>
+        <div class="modal hide" id="placeModal">
+            <form action="/places" type="POST" data-bind="submit: addPlace">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    ×</button>
+                <h3>
+                    Add Place</h3>
+            </div>
+            <div class="modal-body">
+                <label for="name">
+                    Name:</label>
+                <input type="text" data-bind="value: name"/>
+                <div id="tagList">
+                    <label for="tags">Tags: </label>
+                    <div class="input-append"><input  type="text" data-bind="value: newTag, valueUpdate: 'afterkeydown'" /><a href="#" class="btn btn-success" data-bind="click: addTag"><i class="icon-plus icon-white"></i></a></div>
+                    <ul class="unstyled" data-bind="foreach: tags">
+                        <li><a href="#" data-bind="click: $parent.removeTag, attr:{title:'Remove tag: ' +$data }" class="label label-important "><i class="icon-minus-sign icon-white"></i></a> <span class="label" data-bind="text: $data"></span></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn" data-dismiss="modal">Close</a> <button data-bind="click: addPlace" class="btn btn-primary"
+                    >Add new place</button>
+            </div>
+            </form>
+        </div>
+        <pre data-bind="text: ko.toJSON(viewModel), visible: false"> </pre>
+    </div>
+    <!-- /container -->
+    <!-- Le javascript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="/Scripts/jquery-1.7.2.min.js"></script>
+    <script src="/Scripts/bootstrap.min.js"></script>
+    <script src="/Scripts/knockout-2.1.0.js"></script>
+    <script src="/Scripts/underscore.min.js"></script>
+    <script src="/Scripts/underscore-ko-1.1.0.min.js"></script>
+    <script type="text/javascript">
+
+        function PlaceModel(data) {
+            var self = this;
+            this.id = ko.observable(data.Id);
+            this.name = ko.observable(data.Name);
+            this.tags = ko.observableArray(data.Tags || []);
+            this.tagList = ko.computed(function () {
+                var content = "";
+                if (self.tags().length == 0) {
+                    return content;
+                }
+                self.tags().sort().forEach(function (tag) {
+                    content += "<span class='label'>" + tag + "</span> ";
+                });
+                return content;
+            }, this);
+        }
+
+        var viewModel = {
+            places: ko.observableArray([]),
+            name: ko.observable(),
+            tags: ko.observableArray([]),
+            newTag: ko.observable(),
+            addPlace: function (form) {
+                var self = this;
+                $.ajax({
+                    url: '/places',
+                    type: 'POST',
+                    data: { name: self.name, tags: self.tags },
+                    success: function (data) {
+                        var place = new PlaceModel(data);
+                        self.places.push(place);
+                        self.places.sort(function (left, right) { return left.name() == right.name() ? 0 : (left.name() < right.name() ? -1 : 1); });
+                        $("#placeModal").modal("hide");
+                        $("[rel=popover]").popover();
+                        self.name("");
+                        self.tags([]);
+                        $("#placesList").prepend('<div class="alert alert-success in fade"><a href="#" data-dismiss="alert" class="close">&times;</a>Added new place: ' + place.name() + '</div>');
+                    },
+                    error: function (jqXHR, error, errorStatus) {
+                        $("#placesList").prepend("<div class='alert alert-error in fade'><a href='#' data-dismiss='alert' class='close>&times;</a>Error adding place!</div>");
+                    }
+                });
+            }
+        };
+
+        viewModel.removePlace = function(place) {
+            $.ajax({
+                url: 'places/' + place.id(),
+                type: "DELETE",
+                success: function() {
+                       viewModel.places.remove(place);
+                },
+                statusCode: {
+                    404: function(jqXHR, error, errorStatus) {
+                        viewModel.places.remove(place);
+                    },
+                    410: function(jqXHR, error, errorStatus) {
+                        viewModel.places.remove(place);
+                    }
+                }
+            });
+        };
+
+        
+        viewModel.addTag = function() {
+            var self = viewModel;
+            if ( /\S/ .test(viewModel.newTag())) {
+                if (!(self.tags.contains(self.newTag()))) {
+                    self.tags.push(viewModel.newTag());
+                }
+                self.newTag("");
+            }
+        };
+
+        viewModel.removeTag = function(tag) {
+            var self = viewModel;
+            self.tags.remove(tag);
+        };
+        $(function () {
+            var getViewModel = [
+                          $.getJSON("/places", function (data) {
+                              ko.utils.arrayForEach(data, function (place) {
+                                  viewModel.places.push(new PlaceModel(place));
+                                  viewModel.places.sort(function (left, right) { return left.name() == right.name() ? 0 : (left.name() < right.name() ? -1 : 1); });
+                              });
+                          })
+                      ];
+            $.when.apply(this, getViewModel).done(function () {
+                ko.applyBindings(viewModel);
+                $("[rel=popover]").popover();
+            });
+        });
+    </script>
+</body>
+</html>
